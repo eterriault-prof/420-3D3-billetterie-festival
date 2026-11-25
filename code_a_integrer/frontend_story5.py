@@ -1,65 +1,103 @@
 # ============================================================
-# CODE FRONTEND — Story 5
+# CODE FRONTEND — Story 4
 # Fourni par l'équipe frontend
 # ============================================================
-# Page de traitement (délai simulé) + confirmation + erreur de paiement.
+# Remplace le template reservation.html pour inclure le choix du type de billet.
 # ============================================================
 
-ROUTES = """
-@app.route("/traitement")
-def traitement():
-    # Paramètres transmis depuis reserver_post()
-    nom        = request.args.get("nom")
-    type_billet = request.args.get("type_billet")
-    cible      = request.args.get("cible")
-    return render_template("traitement.html",
-                           nom=nom,
-                           type_billet=type_billet,
-                           cible=cible)
-
-
-@app.route("/confirmation")
-def confirmation():
-    nom         = request.args.get("nom")
-    type_billet = request.args.get("type_billet")
-    cible       = request.args.get("cible")
-    prix        = request.args.get("prix")
-    return render_template("confirmation.html",
-                           nom=nom,
-                           type_billet=type_billet,
-                           cible=cible,
-                           prix=prix)
-
-
-@app.route("/erreur-paiement")
-def erreur_paiement():
-    return render_template("erreur_paiement.html")
-"""
-
-TEMPLATE_TRAITEMENT = """
+TEMPLATE_RESERVATION_V2 = """
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Traitement en cours</title>
-    <!-- Redirection automatique après 3 secondes vers /confirmation -->
-    <meta http-equiv="refresh" content="3;url=/confirmation?nom={{ nom }}&type_billet={{ type_billet }}&cible={{ cible }}&prix={{ prix }}">
+    <title>Réserver</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .carte { text-align: center; padding: 48px 32px; }
-        .spinner { width: 48px; height: 48px; border: 4px solid #333; border-top-color: #f5a623; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        h2 { color: #f5a623; margin-bottom: 8px; }
-        p { color: #aaa; }
+        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 560px; margin: 0 auto; }
+        nav { display: flex; gap: 20px; margin-bottom: 32px; }
+        nav a { color: #f5a623; text-decoration: none; font-size: 0.95em; }
+        h1 { color: #f5a623; margin-bottom: 24px; }
+        label { display: block; margin-top: 16px; color: #aaa; font-size: 0.9em; margin-bottom: 6px; }
+        input[type=text], select { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #f0f0f0; border-radius: 4px; font-size: 1em; }
+        .type-options { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+        .type-option { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; padding: 12px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .type-option:has(input:checked) { border-color: #f5a623; }
+        .type-option input { margin-right: 10px; accent-color: #f5a623; }
+        .type-option .label { font-weight: bold; }
+        .type-option .desc { color: #aaa; font-size: 0.85em; margin-top: 2px; }
+        .type-option .prix-info { color: #f5a623; font-size: 0.85em; white-space: nowrap; }
+        .cible-section { margin-top: 8px; }
+        .btn { margin-top: 24px; width: 100%; background: #f5a623; color: #000; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em; }
+        .erreur { background: #3a1a1a; border-left: 4px solid #e55; padding: 10px 14px; margin-bottom: 16px; border-radius: 4px; }
     </style>
+    <script>
+        function majCible() {
+            const type = document.querySelector('input[name=type_billet]:checked').value;
+            document.getElementById('cible-spectacle').hidden = type !== 'spectacle';
+            document.getElementById('cible-journee').hidden   = type !== 'journee';
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('input[name=type_billet]').forEach(r => r.addEventListener('change', majCible));
+            majCible();
+        });
+    </script>
 </head>
 <body>
-    <div class="carte">
-        <div class="spinner"></div>
-        <h2>Traitement du paiement…</h2>
-        <p>Merci de patienter, {{ nom }}.</p>
-    </div>
+    <nav><a href="/">Accueil</a></nav>
+    <h1>🎟 Réserver un billet</h1>
+    {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
+    <form method="POST">
+        <label>Votre nom</label>
+        <input type="text" name="nom_client" required placeholder="ex. : Marie Tremblay">
+
+        <label>Type de billet</label>
+        <div class="type-options">
+            <label class="type-option">
+                <input type="radio" name="type_billet" value="spectacle" checked>
+                <div>
+                    <div class="label">Billet spectacle</div>
+                    <div class="desc">Accès à un spectacle précis</div>
+                </div>
+                <span class="prix-info">Prix de base</span>
+            </label>
+            <label class="type-option">
+                <input type="radio" name="type_billet" value="journee">
+                <div>
+                    <div class="label">Billet journée</div>
+                    <div class="desc">Tous les spectacles d'une journée</div>
+                </div>
+                <span class="prix-info">−15 %</span>
+            </label>
+            <label class="type-option">
+                <input type="radio" name="type_billet" value="festival">
+                <div>
+                    <div class="label">Billet festival</div>
+                    <div class="desc">Les 3 jours complets</div>
+                </div>
+                <span class="prix-info">−25 %</span>
+            </label>
+        </div>
+
+        <div class="cible-section" id="cible-spectacle">
+            <label>Spectacle</label>
+            <select name="spectacle">
+                {% for s in spectacles %}
+                <option value="{{ s.nom }}">{{ s.nom }} — {{ s.heure }} ({{ s.places }} places · {{ s.prix_base }} $)</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="cible-section" id="cible-journee">
+            <label>Journée</label>
+            <select name="journee">
+                {% for j in journees %}
+                <option value="{{ j.nom }}">{{ j.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn">Réserver</button>
+    </form>
 </body>
 </html>
 """
@@ -72,61 +110,79 @@ TEMPLATE_CONFIRMATION = """
     <title>Confirmation</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 500px; margin: 0 auto; text-align: center; }
-        .carte { background: #1a1a1a; border: 2px solid #f5a623; border-radius: 8px; padding: 40px 32px; margin-top: 40px; }
-        .icone { font-size: 2.5em; margin-bottom: 16px; }
-        h1 { color: #f5a623; margin-bottom: 16px; }
-        .detail { color: #aaa; margin: 6px 0; }
-        .prix { font-size: 1.6em; color: #f5a623; font-weight: bold; margin-top: 16px; }
-        .btn { display: inline-block; margin-top: 28px; background: #f5a623; color: #000; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-weight: bold; }
+        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 500px; margin: 0 auto; }
+        nav { display: flex; gap: 20px; margin-bottom: 32px; }
+        nav a { color: #f5a623; text-decoration: none; font-size: 0.95em; }
+        h1 { color: #f5a623; margin-bottom: 24px; }
+        .carte { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 24px; }
+        .carte p { margin-bottom: 12px; color: #aaa; font-size: 0.95em; }
+        .carte strong { color: #f0f0f0; }
+        .prix { font-size: 1.4em; color: #f5a623; font-weight: bold; margin-top: 8px; }
+        .btn { display: inline-block; margin-top: 24px; background: #f5a623; color: #000; padding: 10px 20px; border-radius: 4px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
+    <nav><a href="/">Accueil</a></nav>
+    <h1>✅ Réservation confirmée</h1>
     <div class="carte">
-        <div class="icone">🎵</div>
-        <h1>Réservation confirmée !</h1>
-        <p class="detail">Merci, <strong>{{ nom }}</strong> !</p>
-        <p class="detail">Billet {{ type_billet }} — {{ cible }}</p>
-        <div class="prix">{{ prix }} $</div>
+        <p>Client : <strong>{{ nom }}</strong></p>
+        <p>Billet : <strong>{{ cible }}</strong></p>
+        <p>Type : <strong>{{ type_billet }}</strong></p>
+        <p class="prix">{{ prix }} $</p>
     </div>
-    <a href="/" class="btn">Retour à l'accueil</a>
+    <a href="/reserver" class="btn">Faire une autre réservation</a>
 </body>
 </html>
 """
 
-TEMPLATE_ERREUR_PAIEMENT = """
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Erreur de paiement</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 500px; margin: 0 auto; text-align: center; }
-        .carte { background: #1a1a1a; border: 2px solid #e55; border-radius: 8px; padding: 40px 32px; margin-top: 40px; }
-        .icone { font-size: 2.5em; margin-bottom: 16px; }
-        h1 { color: #e55; margin-bottom: 16px; }
-        p { color: #aaa; margin: 8px 0; }
-        .btn { display: inline-block; margin-top: 28px; background: #f5a623; color: #000; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="carte">
-        <div class="icone">❌</div>
-        <h1>Échec du paiement</h1>
-        <p>Une erreur est survenue lors du traitement de votre paiement.</p>
-        <p>Aucune réservation n'a été enregistrée.</p>
-    </div>
-    <a href="/reserver" class="btn">Réessayer</a>
-</body>
-</html>
-"""
 
-# Note : la simulation d'échec doit se faire dans votre route reserver_post(),
-# AVANT d'appeler Registre().ajouter() :
-#
-#   import random
-#   if random.random() < 0.1:
-#       return redirect(url_for("erreur_paiement"))
-#
-# Ainsi, en cas d'échec, aucune réservation n'est enregistrée.
+ROUTE_RESERVER_V2 = """
+@app.route("/reserver", methods=["GET"])
+def reserver():
+    disponibles = [s for j in mon_festival.journees for s in j.spectacles if s.statut != "complet"]
+    return render_template("reservation.html",
+                           spectacles=disponibles,
+                           journees=mon_festival.journees)
+
+
+@app.route("/reserver", methods=["POST"])
+def reserver_post():
+    nom_client  = request.form["nom_client"]
+    type_billet = request.form["type_billet"]   # "spectacle", "journee" ou "festival"
+
+    # Déterminer la cible selon le type
+    if type_billet == "spectacle":
+        cible_nom = request.form["spectacle"]
+        cible = next((s for j in mon_festival.journees for s in j.spectacles if s.nom == cible_nom), None)
+    elif type_billet == "journee":
+        cible_nom = request.form["journee"]
+        cible = next((j for j in mon_festival.journees if j.nom == cible_nom), None)
+    else:
+        cible = mon_festival
+
+    if cible is None:
+        return render_template("reservation.html",
+                               spectacles=[s for j in mon_festival.journees for s in j.spectacles if s.statut != "complet"],
+                               journees=mon_festival.journees,
+                               erreur="Sélection introuvable.")
+
+    # Créer le billet via votre Fabrique et enregistrer
+    billet = get_billet(type_billet, cible)      # votre fabrique
+    Registre().ajouter(nom_client, billet)       # votre registre
+
+    cible_label = cible_nom if type_billet != "festival" else "Festival complet"
+    return redirect(url_for("confirmation",
+                            nom=nom_client,
+                            type_billet=billet.type_billet(),
+                            cible=cible_label,
+                            prix=billet.prix()))
+
+
+@app.route("/confirmation")
+def confirmation():
+    return render_template("confirmation.html",
+                           nom=request.args.get("nom"),
+                           type_billet=request.args.get("type_billet"),
+                           cible=request.args.get("cible"),
+                           prix=request.args.get("prix"))
+"""
