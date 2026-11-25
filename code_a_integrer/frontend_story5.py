@@ -2,92 +2,64 @@
 # CODE FRONTEND — Story 5
 # Fourni par l'équipe frontend
 # ============================================================
-# Instructions :
-#   1. Ajoutez les routes ci-dessous dans votre app.py
-#   2. Créez les templates reservation.html et confirmation.html
-#   3. Adaptez les imports pour utiliser votre Registre et votre Festival
+# Page de traitement (délai simulé) + confirmation + erreur de paiement.
 # ============================================================
 
-ROUTES_A_AJOUTER = """
-from flask import Flask, render_template, request, redirect, url_for
-from registre import Registre       # ← votre import
-from festival import mon_festival   # ← votre import
+ROUTES = """
+@app.route("/traitement")
+def traitement():
+    # Paramètres transmis depuis reserver_post()
+    nom        = request.args.get("nom")
+    type_billet = request.args.get("type_billet")
+    cible      = request.args.get("cible")
+    return render_template("traitement.html",
+                           nom=nom,
+                           type_billet=type_billet,
+                           cible=cible)
 
-@app.route("/reserver", methods=["GET"])
-def reserver():
-    # Construire la liste des spectacles disponibles pour le formulaire
-    spectacles = []
-    for scene in mon_festival.scenes:
-        for s in scene.spectacles:
-            spectacles.append(s)
-    return render_template("reservation.html", spectacles=spectacles)
-
-@app.route("/reserver", methods=["POST"])
-def reserver_post():
-    nom_client   = request.form["nom_client"]
-    nom_spectacle = request.form["spectacle"]
-
-    # Trouver le spectacle correspondant
-    spectacle_choisi = None
-    for scene in mon_festival.scenes:
-        for s in scene.spectacles:
-            if s.nom == nom_spectacle:
-                spectacle_choisi = s
-                break
-
-    if spectacle_choisi is None or spectacle_choisi.places_disponibles() <= 0:
-        return render_template("reservation.html",
-                               spectacles=[s for sc in mon_festival.scenes for s in sc.spectacles],
-                               erreur="Ce spectacle est complet ou introuvable.")
-
-    # Enregistrer la réservation — c'est votre Registre qui gère ça
-    Registre().ajouter(nom_client, spectacle_choisi)
-    spectacle_choisi.reserver()   # ← méthode à implémenter sur Spectacle
-
-    return redirect(url_for("confirmation", nom=nom_client, spectacle=spectacle_choisi.nom))
 
 @app.route("/confirmation")
 def confirmation():
-    nom = request.args.get("nom")
-    spectacle = request.args.get("spectacle")
-    return render_template("confirmation.html", nom=nom, spectacle=spectacle)
+    nom         = request.args.get("nom")
+    type_billet = request.args.get("type_billet")
+    cible       = request.args.get("cible")
+    prix        = request.args.get("prix")
+    return render_template("confirmation.html",
+                           nom=nom,
+                           type_billet=type_billet,
+                           cible=cible,
+                           prix=prix)
+
+
+@app.route("/erreur-paiement")
+def erreur_paiement():
+    return render_template("erreur_paiement.html")
 """
 
-TEMPLATE_RESERVATION = """
+TEMPLATE_TRAITEMENT = """
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Réserver un billet</title>
+    <title>Traitement en cours</title>
+    <!-- Redirection automatique après 3 secondes vers /confirmation -->
+    <meta http-equiv="refresh" content="3;url=/confirmation?nom={{ nom }}&type_billet={{ type_billet }}&cible={{ cible }}&prix={{ prix }}">
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 40px auto; padding: 0 20px; background: #0d0d0d; color: #f0f0f0; }
-        h1 { color: #f5a623; }
-        label { display: block; margin-top: 16px; color: #aaa; }
-        input, select { width: 100%; padding: 10px; margin-top: 6px; background: #1a1a1a; border: 1px solid #333; color: #f0f0f0; border-radius: 4px; box-sizing: border-box; }
-        .btn { margin-top: 24px; background: #f5a623; color: #000; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em; width: 100%; }
-        .erreur { background: #3a1a1a; border-left: 4px solid #e55; padding: 10px 14px; margin-bottom: 16px; border-radius: 4px; }
-        nav a { color: #f5a623; margin-right: 16px; text-decoration: none; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .carte { text-align: center; padding: 48px 32px; }
+        .spinner { width: 48px; height: 48px; border: 4px solid #333; border-top-color: #f5a623; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        h2 { color: #f5a623; margin-bottom: 8px; }
+        p { color: #aaa; }
     </style>
 </head>
 <body>
-    <nav><a href="/">Accueil</a></nav>
-    <h1>🎟 Réserver un billet</h1>
-    {% if erreur %}
-    <div class="erreur">{{ erreur }}</div>
-    {% endif %}
-    <form method="POST">
-        <label>Votre nom</label>
-        <input type="text" name="nom_client" required placeholder="ex. : Marie Tremblay">
-        <label>Spectacle</label>
-        <select name="spectacle">
-            {% for s in spectacles %}
-            {% if s.places_disponibles() > 0 %}
-            <option value="{{ s.nom }}">{{ s.nom }} — {{ s.heure }} ({{ s.places_disponibles() }} places)</option>
-            {% endif %}
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn">Réserver</button>
-    </form>
+    <div class="carte">
+        <div class="spinner"></div>
+        <h2>Traitement du paiement…</h2>
+        <p>Merci de patienter, {{ nom }}.</p>
+    </div>
 </body>
 </html>
 """
@@ -99,21 +71,62 @@ TEMPLATE_CONFIRMATION = """
     <meta charset="UTF-8">
     <title>Confirmation</title>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 40px auto; padding: 0 20px; background: #0d0d0d; color: #f0f0f0; text-align: center; }
-        h1 { color: #f5a623; }
-        .carte { background: #1a1a1a; border: 2px solid #f5a623; border-radius: 8px; padding: 32px; margin-top: 24px; }
-        .btn { display: inline-block; margin-top: 24px; background: #f5a623; color: #000; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: bold; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 500px; margin: 0 auto; text-align: center; }
+        .carte { background: #1a1a1a; border: 2px solid #f5a623; border-radius: 8px; padding: 40px 32px; margin-top: 40px; }
+        .icone { font-size: 2.5em; margin-bottom: 16px; }
+        h1 { color: #f5a623; margin-bottom: 16px; }
+        .detail { color: #aaa; margin: 6px 0; }
+        .prix { font-size: 1.6em; color: #f5a623; font-weight: bold; margin-top: 16px; }
+        .btn { display: inline-block; margin-top: 28px; background: #f5a623; color: #000; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="carte">
-        <div style="font-size: 2em;">🎵</div>
+        <div class="icone">🎵</div>
         <h1>Réservation confirmée !</h1>
-        <p>Merci, <strong>{{ nom }}</strong> !</p>
-        <p>Votre billet pour <strong>{{ spectacle }}</strong> est réservé.</p>
+        <p class="detail">Merci, <strong>{{ nom }}</strong> !</p>
+        <p class="detail">Billet {{ type_billet }} — {{ cible }}</p>
+        <div class="prix">{{ prix }} $</div>
     </div>
     <a href="/" class="btn">Retour à l'accueil</a>
 </body>
 </html>
 """
-# Note : copiez le contenu de chaque TEMPLATE dans le fichier .html correspondant
+
+TEMPLATE_ERREUR_PAIEMENT = """
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Erreur de paiement</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 500px; margin: 0 auto; text-align: center; }
+        .carte { background: #1a1a1a; border: 2px solid #e55; border-radius: 8px; padding: 40px 32px; margin-top: 40px; }
+        .icone { font-size: 2.5em; margin-bottom: 16px; }
+        h1 { color: #e55; margin-bottom: 16px; }
+        p { color: #aaa; margin: 8px 0; }
+        .btn { display: inline-block; margin-top: 28px; background: #f5a623; color: #000; padding: 12px 28px; border-radius: 4px; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="carte">
+        <div class="icone">❌</div>
+        <h1>Échec du paiement</h1>
+        <p>Une erreur est survenue lors du traitement de votre paiement.</p>
+        <p>Aucune réservation n'a été enregistrée.</p>
+    </div>
+    <a href="/reserver" class="btn">Réessayer</a>
+</body>
+</html>
+"""
+
+# Note : la simulation d'échec doit se faire dans votre route reserver_post(),
+# AVANT d'appeler Registre().ajouter() :
+#
+#   import random
+#   if random.random() < 0.1:
+#       return redirect(url_for("erreur_paiement"))
+#
+# Ainsi, en cas d'échec, aucune réservation n'est enregistrée.

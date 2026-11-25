@@ -2,76 +2,85 @@
 # CODE FRONTEND — Story 3
 # Fourni par l'équipe frontend
 # ============================================================
-# Instructions :
-#   1. Copiez ce code dans votre app.py (remplacez la route "/" existante)
-#   2. Remplacez le template accueil.html par le nouveau ci-dessous
-#   3. Adaptez les variables pour utiliser vos objets Festival/Scene/Spectacle
+# Ajoutez les routes ci-dessous dans votre app.py.
+# Adaptez les imports selon vos propres classes.
 # ============================================================
 
-# --- Route à intégrer dans app.py ---
-#
-# from flask import Flask, render_template
-# from festival import Festival  # ← votre import
-#
-# @app.route("/")
-# def accueil():
-#     # Remplacez "mon_festival" par votre objet Festival
-#     return render_template("accueil.html", festival=mon_festival)
+ROUTES = """
+@app.route("/reserver", methods=["GET"])
+def reserver():
+    # Récupérer tous les spectacles disponibles (toutes journées confondues)
+    disponibles = [
+        s for j in mon_festival.journees
+        for s in j.spectacles
+        if s.statut != "complet"
+    ]
+    return render_template("reservation.html", spectacles=disponibles)
 
 
-# --- Nouveau template accueil.html ---
-TEMPLATE_ACCUEIL = """
+@app.route("/reserver", methods=["POST"])
+def reserver_post():
+    nom_client    = request.form["nom_client"]
+    nom_spectacle = request.form["spectacle"]
+
+    spectacle_choisi = None
+    for journee in mon_festival.journees:
+        for s in journee.spectacles:
+            if s.nom == nom_spectacle:
+                spectacle_choisi = s
+                break
+
+    if spectacle_choisi is None or spectacle_choisi.statut == "complet":
+        disponibles = [s for j in mon_festival.journees for s in j.spectacles if s.statut != "complet"]
+        return render_template("reservation.html",
+                               spectacles=disponibles,
+                               erreur="Ce spectacle est complet ou introuvable.")
+
+    # Créer le billet et enregistrer la réservation — à vous d'implémenter
+    billet = get_billet("spectacle", spectacle_choisi)   # votre fabrique
+    Registre().ajouter(nom_client, billet)               # votre registre
+
+    return redirect(url_for("traitement",
+                            nom=nom_client,
+                            type_billet="spectacle",
+                            cible=spectacle_choisi.nom))
+"""
+
+TEMPLATE_RESERVATION = """
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ festival.nom }}</title>
+    <title>Réserver</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #0d0d0d; color: #f0f0f0; }
-        h1 { color: #f5a623; letter-spacing: 2px; }
-        h2 { color: #f5a623; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        .scene { margin-bottom: 32px; }
-        .places-scene { color: #aaa; font-size: 0.9em; margin-left: 8px; }
-        .spectacle { background: #1a1a1a; border-left: 4px solid #f5a623; padding: 12px 16px; margin: 8px 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .spectacle .nom { font-weight: bold; font-size: 1.1em; }
-        .spectacle .info { color: #aaa; font-size: 0.9em; }
-        .places { background: #f5a623; color: #000; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; }
-        .complet { background: #555; color: #aaa; }
-        nav a { color: #f5a623; margin-right: 16px; text-decoration: none; }
-        .btn { background: #f5a623; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none; font-size: 0.9em; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #0d0d0d; color: #f0f0f0; padding: 24px 20px; max-width: 500px; margin: 0 auto; }
+        nav { display: flex; gap: 20px; margin-bottom: 32px; }
+        nav a { color: #f5a623; text-decoration: none; font-size: 0.95em; }
+        h1 { color: #f5a623; margin-bottom: 24px; }
+        label { display: block; margin-top: 16px; color: #aaa; font-size: 0.9em; margin-bottom: 6px; }
+        input, select { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #f0f0f0; border-radius: 4px; font-size: 1em; }
+        .btn { margin-top: 24px; width: 100%; background: #f5a623; color: #000; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em; }
+        .erreur { background: #3a1a1a; border-left: 4px solid #e55; padding: 10px 14px; margin-bottom: 16px; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <nav>
-        <a href="/">Accueil</a>
-        <a href="/reserver">Réserver</a>
-        <a href="/admin">Admin</a>
-    </nav>
-    <h1>🎵 {{ festival.nom }}</h1>
-    <p>{{ festival.places_disponibles() }} places disponibles au total</p>
+    <nav><a href="/">Accueil</a></nav>
+    <h1>🎟 Réserver un billet</h1>
+    {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
+    <form method="POST">
+        <label>Votre nom</label>
+        <input type="text" name="nom_client" required placeholder="ex. : Marie Tremblay">
 
-    {% for scene in festival.scenes %}
-    <div class="scene">
-        <h2>{{ scene.nom }} <span class="places-scene">({{ scene.places_disponibles() }} places)</span></h2>
-        {% for spectacle in scene.spectacles %}
-        <div class="spectacle">
-            <div>
-                <div class="nom">{{ spectacle.nom }}</div>
-                <div class="info">{{ spectacle.heure }} · {{ spectacle.statut }}</div>
-            </div>
-            {% if spectacle.places_disponibles() > 0 %}
-            <span class="places">{{ spectacle.places_disponibles() }} places</span>
-            {% else %}
-            <span class="places complet">Complet</span>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    {% endfor %}
+        <label>Spectacle</label>
+        <select name="spectacle">
+            {% for s in spectacles %}
+            <option value="{{ s.nom }}">{{ s.nom }} — {{ s.heure }} ({{ s.places }} places · {{ s.prix_base }} $)</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn">Réserver</button>
+    </form>
 </body>
 </html>
 """
-
-# Note : copiez le contenu de TEMPLATE_ACCUEIL dans templates/accueil.html
-# (sans les guillemets Python)
